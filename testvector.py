@@ -45,8 +45,10 @@ def reduce_frames(input, transformed, interval):
 
 
 reduced_array = reduce_frames(input, transformed, interval)
+reduced_array = reduced_array[:,1]
 #print("----")
 #print(reduced_array)
+#print(len(reduced_array))
 def show_plots(input, transformed, extra):
 
     plt.scatter(input[:, 0], input[:, 1])

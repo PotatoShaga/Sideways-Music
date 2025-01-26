@@ -1,10 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.io import wavfile
-from scipy.fft import fft, ifft
-from scipy.signal.windows import hann
 import wave
 from Sideify import testvector
+import scipy.signal as signal
+import scipy.io.wavfile as wavfile
 
 def get_wave_info(file_path):
     with wave.open(file_path, 'rb') as wav_file:
@@ -30,8 +29,8 @@ def get_wave_info(file_path):
         return n_channels, sample_width, framerate, n_frames, duration, data
     
 
-    
-n_channels, sample_width, framerate, n_frames, duration, data = get_wave_info("testtone.wav")
+testname = "intentionscover.wav"
+n_channels, sample_width, framerate, n_frames, duration, data = get_wave_info(testname)
 
 # Turn bytes --> pcm
 pcm = np.frombuffer(data, dtype=np.int16) #PCM data, derived from raw bytes
@@ -42,7 +41,7 @@ original = np.column_stack((pcm_indices,pcm))
 #print(zipped)
 
 # Rotates the (x,y) coordinates by the specified angle
-degree = 90
+degree = 5
 transformed_pcm_array = testvector.rotation(original,degree) #INPUT, DEGREE
 
 original_distance = abs(pcm_indices.min()) + abs(pcm_indices.max()) 
@@ -51,16 +50,28 @@ transformed_distance = abs(transformed_pcm_array[:,0].min()) + abs(transformed_p
 distance_ratio = original_distance / transformed_distance
 distance_ratio = round(distance_ratio)
 
-print(original_distance, transformed_distance, distance_ratio)
+print(f"before, after, ratio: {original_distance}, {transformed_distance}, {distance_ratio}")
 
 reduced_pcm = testvector.reduce_frames(original, transformed_pcm_array, distance_ratio)
-print(reduced_pcm)
+#print(reduced_pcm)
 
 # Turns 2d pcm --> 1d pcm --> bytes
 reduced_pcm = reduced_pcm[:,1] #takes value column to convert back to 1d
 print(reduced_pcm.min(),reduced_pcm.max())
-print(len(reduced_pcm))
-modified_data = reduced_pcm.astype(np.int16).tobytes()
+print(f"frame count of reduced_pcm: {len(reduced_pcm)}")
+pcm_normalized = reduced_pcm / np.max(np.abs(reduced_pcm))
+pcm_normalized = np.int16(pcm_normalized*32767)
+
+def lowpass(data, cutoff, samplerate, type='lowpass'):
+    sos = signal.butter(5, cutoff, type, fs=samplerate, output='sos')
+    filtered_data = signal.sosfiltfilt(sos,data)
+    return filtered_data
+
+modified_pcm = pcm_normalized
+modified_pcm = lowpass(pcm_normalized, 20000, framerate)
+modified_pcm = lowpass(modified_pcm, 80, framerate, type='highpass')
+
+modified_data = modified_pcm.astype(np.int16).tobytes()
 
 # Creates .wav with bytes as data
 with wave.open("transformedouput.wav", mode="wb") as wav_file:
