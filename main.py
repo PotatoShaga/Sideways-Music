@@ -15,7 +15,16 @@ def get_wave_info(file_path):
         compression_name = wav_file.getcompname()
         
         duration = n_frames / framerate
-        
+
+        if sample_width == 1:
+            bytenumber - np.int8
+        if sample_width == 2:
+            bytenumber = np.int16
+        if sample_width == 3:
+            bytenumber = np.int32 * 3
+        if sample_width == 4:
+            bytenumber = np.int32
+
         print("Number of channels:", n_channels)
         print("Sample width (bytes):", sample_width)
         print("Frame rate (samples per second):", framerate)
@@ -26,7 +35,7 @@ def get_wave_info(file_path):
 
         data = wav_file.readframes(n_frames)
 
-        return n_channels, sample_width, framerate, n_frames, duration, data
+        return n_channels, sample_width, framerate, n_frames, duration, data, bytenumber
     
 def rotation(input, deg):
     theta = deg * (np.pi)/180 #convert input deg to rad, since all internal work done in rad
@@ -37,8 +46,13 @@ def rotation(input, deg):
     transformed = np.dot(input, R.T) #MATRIX MUL
     return transformed
 
-def reduce_frames(input, transformed, interval):
-    sortedxaxis = np.argsort(transformed[:,1]) #sort by low-->high y values, since this is 90 deg up. what to do if at say 37 deg? maybe just put an if statement for past 45deg
+def reduce_frames(input, transformed, interval, degree):
+    if (45 < degree < 135) or (225 < degree < 315):
+        trigger = 1 #sort by y values if degree above 45 and equivalent
+    else:
+        trigger = 0
+
+    sortedxaxis = np.argsort(transformed[:,trigger]) #sort by low-->high y values, since this is 90 deg up. what to do if at say 37 deg? maybe just put an if statement for past 45deg
     transformed = transformed[sortedxaxis]
 
     df = pd.DataFrame(transformed, columns=["indices","values"])
@@ -61,11 +75,11 @@ def show_plots(input, transformed, extra):
     plt.scatter(extra[:, 0], extra[:, 1])
     plt.show()
 
-def script(filename, degree=5):
-    n_channels, sample_width, framerate, n_frames, duration, data = get_wave_info(filename)
+def script(filename, degree=0.1):
+    n_channels, sample_width, framerate, n_frames, duration, data, bytenumber = get_wave_info(filename)
 
     # Turn bytes --> pcm
-    pcm = np.frombuffer(data, dtype=np.int16) #PCM data, derived from raw bytes
+    pcm = np.frombuffer(data, dtype=bytenumber) #PCM data, derived from raw bytes
 
     # Turns 1d pcm --> 2d pcm which each item being [index, value]. This is our (x,y) coordinates
     pcm_indices = np.arange(pcm.size)
@@ -82,14 +96,14 @@ def script(filename, degree=5):
 
     #print(f"before, after, ratio: {original_distance}, {transformed_distance}, {distance_ratio}")
 
-    reduced_pcm = reduce_frames(original, transformed_pcm_array, distance_ratio) #reduce frames based on distance ratio
+    reduced_pcm = reduce_frames(original, transformed_pcm_array, distance_ratio, degree) #reduce frames based on distance ratio
 
     # Turns 2d pcm --> 1d pcm
     reduced_pcm = reduced_pcm[:,1] #takes value column to convert back to 1d
     #print(reduced_pcm.min(),reduced_pcm.max())
     #print(f"frame count of reduced_pcm: {len(reduced_pcm)}")
     pcm_normalized = reduced_pcm / np.max(np.abs(reduced_pcm))
-    pcm_normalized = np.int16(pcm_normalized*32767)
+    pcm_normalized = bytenumber(pcm_normalized*32767)
 
     def lowpass(data, cutoff, samplerate, type='lowpass'):
         sos = signal.butter(5, cutoff, type, fs=samplerate, output='sos')
@@ -101,7 +115,7 @@ def script(filename, degree=5):
     modified_pcm = lowpass(modified_pcm, 80, framerate, type='highpass')
 
     # Turns 1d pcm --> bytes
-    modified_data = modified_pcm.astype(np.int16).tobytes()
+    modified_data = modified_pcm.astype(bytenumber).tobytes()
 
     # Creates .wav with bytes as data
     with wave.open("transformedouput.wav", mode="wb") as wav_file:
@@ -111,4 +125,5 @@ def script(filename, degree=5):
         wav_file.writeframes(modified_data)
 
 if __name__ == "__main__":
-    script("intentionscover.wav", 0)
+    filename = "intentionscover.wav"
+    script(filename, 180)
