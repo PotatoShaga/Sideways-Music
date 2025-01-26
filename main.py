@@ -73,6 +73,7 @@ def show_plots(input, transformed, extra):
     plt.scatter(input[:, 0], input[:, 1])
     plt.scatter(transformed[:, 0], transformed[:, 1])
     plt.scatter(extra[:, 0], extra[:, 1])
+    plt.legend(["input","transformed","extra"])
     plt.show()
 
 def script(filename, degree=0.1):
@@ -96,14 +97,14 @@ def script(filename, degree=0.1):
 
     #print(f"before, after, ratio: {original_distance}, {transformed_distance}, {distance_ratio}")
 
-    reduced_pcm = reduce_frames(original, transformed_pcm_array, distance_ratio, degree) #reduce frames based on distance ratio
+    reduced_pcm_array = reduce_frames(original, transformed_pcm_array, distance_ratio, degree) #reduce frames based on distance ratio
 
     # Turns 2d pcm --> 1d pcm
-    reduced_pcm = reduced_pcm[:,1] #takes value column to convert back to 1d
+    reduced_pcm = reduced_pcm_array[:,1] #takes value column to convert back to 1d
     #print(reduced_pcm.min(),reduced_pcm.max())
     #print(f"frame count of reduced_pcm: {len(reduced_pcm)}")
     pcm_normalized = reduced_pcm / np.max(np.abs(reduced_pcm))
-    pcm_normalized = bytenumber(pcm_normalized*32767)
+    pcm_normalized = bytenumber(pcm_normalized*framerate)
 
     def lowpass(data, cutoff, samplerate, type='lowpass'):
         sos = signal.butter(5, cutoff, type, fs=samplerate, output='sos')
@@ -116,7 +117,7 @@ def script(filename, degree=0.1):
 
     # Turns 1d pcm --> bytes
     modified_data = modified_pcm.astype(bytenumber).tobytes()
-
+    #show_plots(original, reduced_pcm_array, transformed_pcm_array)
     # Creates .wav with bytes as data
     with wave.open("transformedouput.wav", mode="wb") as wav_file:
         wav_file.setnchannels(n_channels)
@@ -126,4 +127,5 @@ def script(filename, degree=0.1):
 
 if __name__ == "__main__":
     filename = "intentionscover.wav"
-    script(filename, 180)
+    filename = "newjeans.wav"
+    script(filename, 0.1)
