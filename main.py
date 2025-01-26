@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import wave
-from Sideify import testvector
 import scipy.signal as signal
 import scipy.io.wavfile as wavfile
 import pandas as pd
@@ -73,7 +72,7 @@ def script(filename, degree=5):
     original = np.column_stack((pcm_indices,pcm))
 
     # Rotates the (x,y) coordinates by the specified angle
-    transformed_pcm_array = testvector.rotation(original,degree) #INPUT, DEGREE
+    transformed_pcm_array = rotation(original,degree) #INPUT, DEGREE
 
     original_distance = abs(pcm_indices.min()) + abs(pcm_indices.max()) 
     transformed_distance = abs(transformed_pcm_array[:,0].min()) + abs(transformed_pcm_array[:, 0].max()) #even though its vertical, there are just as many x values as indices
@@ -83,7 +82,7 @@ def script(filename, degree=5):
 
     #print(f"before, after, ratio: {original_distance}, {transformed_distance}, {distance_ratio}")
 
-    reduced_pcm = testvector.reduce_frames(original, transformed_pcm_array, distance_ratio) #reduce frames based on distance ratio
+    reduced_pcm = reduce_frames(original, transformed_pcm_array, distance_ratio) #reduce frames based on distance ratio
 
     # Turns 2d pcm --> 1d pcm
     reduced_pcm = reduced_pcm[:,1] #takes value column to convert back to 1d
